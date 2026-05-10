@@ -47,3 +47,5 @@ def find_duplicates(nums):
             seen.add(num)
 
     return list(dups)
+
+
