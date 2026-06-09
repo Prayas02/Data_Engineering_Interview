@@ -1,4 +1,4 @@
--- Consequtive Numbers
+-- Consequtive Numbers (take cte and fix the group by issue)
 with cte as
 (select seat_no , seat_no-row_number() over(order by seat_no) as rn from bms
 where is_empty = 'Y'),
@@ -85,6 +85,18 @@ select city from
 (select *, lag(cases) over(partition by city order by days) as prev from covid)m)n
 group by city having min(bi)=1;
 
+--customers who baught from A and B but not C
+SELECT CustID
+FROM purchases
+GROUP BY CustID
+HAVING COUNT(CASE WHEN ProductCode = 'A' THEN 1 END) > 0
+   AND COUNT(CASE WHEN ProductCode = 'B' THEN 1 END) > 0
+   AND COUNT(CASE WHEN ProductCode = 'C' THEN 1 END) = 0;
+
+
+--should have both inc and out and sum of out is greater than inc
+select call_number from call_details where call_type in ('OUT','INC') group by call_number having 
+count(distinct call_type)=2 and sum(case when call_type='OUT' then call_duration end)>sum(case when call_type='INC' then call_duration end);
 
 -- product in range -- cumulative sum
 with running_cost as (
@@ -321,3 +333,56 @@ SELECT emp_id, emp_name, salary
 FROM cte1 
 WHERE (cn > 2 AND rn = 3) 
    OR (cn <= 2 AND rn = 1);
+
+-- another pivot example (focus on group key creation)
+
+with cte as
+    (select *,
+           row_number() over(partition by left(seat,1) order by cast(substring(seat,2)as unsigned)) as rn
+    from movie)
+    
+    select rn,
+    max(case when left(seat,1) = 'a' then seat end) as a,
+    max(case when left(seat,1) = 'b' then seat end) as b,
+    max(case when left(seat,1) = 'c' then seat end) as c
+from cte group by rn order by rn
+    ;
+
+
+-- identify columns with all nulls
+SELECT column_name
+FROM information_schema.columns
+WHERE table_name = 'your_table'
+  AND table_schema = 'public'
+  AND (
+    SELECT COUNT(column_name)  -- reuse column_name dynamically
+    FROM your_table
+  ) = 0;
+
+
+-- sort such that a specific vale always appears at top
+SELECT *
+FROM countries
+ORDER BY
+  CASE WHEN name = 'India' THEN 0 ELSE 1 END,  -- India gets priority 0
+  name ASC;                                      -- rest sorted A-Z
+
+
+-- fill nulls
+WITH numbered_brands AS (
+    -- Step 1: Give every row a dynamic, sequential ID based on how it sits in the table
+    SELECT *, 
+           ROW_NUMBER() OVER () as row_num
+    FROM brands
+),
+partitioned_groups AS (
+    -- Step 2: Create a running group count that increments every time a new category appears
+    SELECT *,
+           COUNT(category) OVER (ORDER BY row_num) AS grp
+    FROM numbered_brands
+)
+-- Step 3: Grab the max category name for each group to fill the NULLs
+SELECT 
+    MAX(category) OVER (PARTITION BY grp) AS category,
+    brand_name
+FROM partitioned_groups;

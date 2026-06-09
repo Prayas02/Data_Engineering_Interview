@@ -1,22 +1,3 @@
-armstrong
-prime number
-recursion 1
-recursion 2
-hashing
-sorted array
-second largest
-remove duplicates
-zeroes end
-rotate array by 1 and many
-linear search and missing  number and number appearing once
-union and intersection
-maximum consequtive ones
-longest sub array with sum k including negatives
-2 sum
-majority element
-maximum sub array sum
-stock buy and sell
-next permutation
-leader in an array
-longest consequtive sequence
-count subarray with given sum
+string parsing with regex
+scd 2
+flatten, explode and schema of json

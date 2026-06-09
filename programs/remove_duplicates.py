@@ -16,6 +16,8 @@ def remove_sorted2(arr):
         j+=1
     return i+1
 
+
+
 def main():
     arr=[1,2,2,3,3,4,5,5,6,6,7]
     remove_sorted(arr)
@@ -24,6 +26,9 @@ def main():
     unq=remove_sorted2(arr1)
     print(arr1, unq)
 
+    word = "abcabcbb"
+    print(''.join(list(set(word))))
+    print(''.join(list(sorted(set(word)))))
 
 if __name__ == "__main__":
     main()
@@ -36,16 +41,28 @@ if j is not equal to i , then update j value in i+1 and increment i
 """
 
 
-def find_duplicates(nums):
-    seen = set()
-    dups = set()
+l1 = [1, 2, 2, 3, 4]
+l2 = [2, 3]
 
-    for num in nums:
-        if num in seen:
-            dups.add(num)
-        else:
-            seen.add(num)
+# Convert l2 to a set for optimized O(1) lookups
+l2_set = set(l2)
 
-    return list(dups)
+# Filter out elements that exist in l2_set
+result = [item for item in l1 if item not in l2_set]
+
+print(result)  
+# Output: [1, 4]
 
 
+arr=[1,2,2,3,3,4,5,5,6,6,7]
+
+l1=[]
+l2=set()
+
+for el in arr:
+    if el not in l1:
+            l1.append(el)
+    else:
+        l2.add(el)
+        
+print(l1,l2)
