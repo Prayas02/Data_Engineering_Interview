@@ -24,7 +24,7 @@ def second_non_repeating(freq):
     for x,y in freq.items():
         if y ==1:
             count+=1
-            if count==2:
+            if count==2:    # observe this
                 return(x)
             
 def second_index(arr,num):

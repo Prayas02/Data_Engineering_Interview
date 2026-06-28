@@ -34,6 +34,23 @@ def group_by(transactions):
 
     return(result)
 
+def unique(lst):
+    l1=[]
+    l2=set()
+
+    for item in lst:
+        if item not in l1:
+            l1.append(item)
+        else:
+            l2.add(item)
+    
+    print('Distinct elements are:- ',l1)
+    print('Repeating elements are:- ',list(l2))
+
+    l3=[item for item in l1 if item not in l2]
+    print('Non Repeating elements are:- ',l3)
+    
+
 def main():
         
     nested = [1, [2, 3], [4, [5, 6]]]
@@ -54,7 +71,9 @@ def main():
 
     result=group_by(transactions)
     print(result)
-
+    
+    arr=[1,2,2,3,3,4,5,5,6,6,7]
+    unique(arr)
 if __name__ == "__main__":
     main()
 

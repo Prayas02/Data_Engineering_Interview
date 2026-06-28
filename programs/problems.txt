@@ -1,3 +1,6 @@
 string parsing with regex
 scd 2
 flatten, explode and schema of json
+merge sorted array
+best time to buy and sell
+longest subsequence without repeating characters

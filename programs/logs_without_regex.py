@@ -16,7 +16,7 @@ def process_logs(logs):
         # if log_level=='ERROR' (additional filter)
         
         if timestamp not in report:
-            report[timestamp]={}
+            report[timestamp]={}      # observe this
         report[timestamp][user]=report[timestamp].get(user,0)+1
     
     return report
