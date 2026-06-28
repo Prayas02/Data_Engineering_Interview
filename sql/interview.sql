@@ -248,9 +248,17 @@ SELECT city, COLLECT_LIST(name) AS names
 FROM players_location
 GROUP BY city;
 
+SELECT city, COLLECT_SET(name) AS names
+FROM players_location
+GROUP BY city;
+
 SELECT city, EXPLODE(names) AS name
 FROM temp_table;
 
+SELECT category,
+       CONCAT_WS(',', COLLECT_LIST(amount)) AS amounts   -- spark specific
+FROM supplies
+GROUP BY category;
 
 -- work with json objects
 
@@ -323,3 +331,142 @@ GROUP BY customer_id limit 2
 customer_id	before_flatten	after_flatten
 C00001	[["B09"],["B03","B12"],["B08","B02"]]	["B09","B03","B12","B08","B02"]
 C00002	[["B07","B06"],["B04","B06"],["B02","B06","B01"]]	["B07","B06","B04","B02","B01"]
+
+-- Working with months
+
+| Month |  Amt | Running Total |
+| ----- | ---: | ------------: |
+| Jan   | 2345 |          2345 |
+| Feb   | 3562 |          5907 |
+| Mar   | 3562 |          9469 |
+| Apr   | 4628 |         14097 |
+| May   | 2900 |         16997 |
+
+SELECT month,
+       SUM(amt) OVER (
+           ORDER BY
+           CASE month
+               WHEN 'Jan' THEN 1
+               WHEN 'Feb' THEN 2
+               WHEN 'Mar' THEN 3
+               WHEN 'Apr' THEN 4
+               WHEN 'May' THEN 5
+           END
+       ) AS running_total
+FROM table;
+
+SELECT *,
+       SUM(amt) OVER (
+           ORDER BY month_no
+           RANGE BETWEEN 1 PRECEDING AND 2 FOLLOWING
+       ) AS sum_amt
+FROM sales;
+
+-- if order by column is a date
+
+SUM(amt) OVER (
+    ORDER BY order_date
+    RANGE BETWEEN INTERVAL 1 MONTH PRECEDING
+          AND INTERVAL 2 MONTH FOLLOWING
+)
+
+SELECT date_format(order_date, 'MM-yyyy') AS month_year,
+       SUM(amount) AS total
+FROM sales
+GROUP BY date_format(order_date, 'MM-yyyy');
+
+-- Having Clause Scenarios
+
+Employees working on BOTH project1 and project2
+
+SELECT empid
+FROM emp_project
+WHERE project IN ('project1','project2')
+GROUP BY empid
+HAVING COUNT(DISTINCT project)=2;
+
+Employees working on project1 and project2 but NO other projects
+
+SELECT employee_id
+FROM Employee_Projects
+GROUP BY employee_id
+HAVING COUNT(DISTINCT project_id)=2
+AND COUNT(DISTINCT CASE
+WHEN project_id IN ('project1','project2')
+THEN project_id
+END)=2;
+
+Employees working ONLY on project1
+
+SELECT empid
+FROM emp_project
+GROUP BY empid
+HAVING COUNT(DISTINCT project)=1
+AND MAX(project)='project1';
+
+Employees working on project1 but NOT project2
+
+SELECT empid
+FROM emp_project
+GROUP BY empid
+HAVING SUM(CASE WHEN project='project1' THEN 1 ELSE 0 END)>0
+AND SUM(CASE WHEN project='project2' THEN 1 ELSE 0 END)=0;
+
+Employees NOT working on project3
+
+SELECT empid
+FROM emp_project
+GROUP BY empid
+HAVING SUM(CASE WHEN project='project3'
+                THEN 1
+                ELSE 0
+           END)=0;
+
+Employees working on AT LEAST one of project1/project2
+
+SELECT DISTINCT empid
+FROM emp_project
+WHERE project IN ('project1','project2');
+
+Employees working on ALL projects
+
+SELECT empid
+FROM emp_project
+GROUP BY empid
+HAVING COUNT(DISTINCT project) =
+(
+    SELECT COUNT(DISTINCT project)
+    FROM emp_project
+);
+
+P1 or P2, but NOT both
+
+SELECT empid FROM emp_project
+WHERE project IN ('P1','P2')
+GROUP BY empid
+HAVING COUNT(DISTINCT project) = 1;
+
+Employees working on EXACTLY N projects
+
+SELECT empid
+FROM emp_project
+GROUP BY empid
+HAVING COUNT(DISTINCT project)=3;
+
+Bought every product EXACTLY ONCE (no duplicates at all)
+
+SELECT userid FROM purchase_history
+GROUP BY userid
+HAVING COUNT(DISTINCT productid) = COUNT(productid);
+
+same marks in physics and chemistry
+select student_id 
+from exams 
+where subject in ('Physics','Chemistry') 
+group by student_id 
+having count(distinct subject)=2 and count(distinct marks)=1;
+
+select student_id from exams where subject in ('Chemistry','Physics')
+group by student_id having count(distinct subject)=2 and max(marks)=min(marks)
+
+
