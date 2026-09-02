@@ -95,11 +95,11 @@ SELECT
 FROM emp_compensation
 GROUP BY emp_id;
 
-select emp_id,'salary' as salary_component_type,salary as val from emp_compensation_pivot
+select emp_id,'salary' as salary_component_type, salary as val from emp_compensation_pivot
 union all 
-select emp_id,'bonus' as salary_component_type,bonus as val from emp_compensation_pivot
+select emp_id,'bonus' as salary_component_type, bonus as val from emp_compensation_pivot
 union all 
-select emp_id,'hike_percent' as salary_component_type,hike_percent as val from emp_compensation_pivot
+select emp_id,'hike_percent' as salary_component_type, hike_percent as val from emp_compensation_pivot
 
 | name  | city      |
 | ----- | --------- |
@@ -260,7 +260,9 @@ SELECT category,
 FROM supplies
 GROUP BY category;
 
--- work with json objects
+
+---------------------------------------------- JSON SPECIFIC ---------------------------------------------------------
+
 
 SELECT customer_id, profile:first_name, profile:address:country 
 FROM customers
@@ -272,7 +274,7 @@ CREATE OR REPLACE TEMP VIEW parsed_customers AS
   FROM customers;
   
 SELECT * FROM parsed_customers
--- make sure to pass a not null record in schema_of_json
+-- make sure to pass a not null record in schema_of_json to infer the schema
 
 SELECT customer_id, profile_struct.first_name, profile_struct.address.country
 FROM parsed_customers
@@ -288,8 +290,6 @@ normalized_json =
     .otherwise(
          concat(lit("["), col("payload"), lit("]"))
     )
-
-from_json(normalized_json, array_schema)
 
 array_schema = ArrayType(
     StructType([
@@ -331,6 +331,33 @@ GROUP BY customer_id limit 2
 customer_id	before_flatten	after_flatten
 C00001	[["B09"],["B03","B12"],["B08","B02"]]	["B09","B03","B12","B08","B02"]
 C00002	[["B07","B06"],["B04","B06"],["B02","B06","B01"]]	["B07","B06","B04","B02","B01"]
+
+
+---------------------------------------------- JSON SPECIFIC ---------------------------------------------------------
+
+NULL count column-wise
+
+Suppose columns are id, name, salary, department:
+
+SELECT
+    COUNT(*) - COUNT(id)         AS id_nulls,
+    COUNT(*) - COUNT(name)       AS name_nulls,
+    COUNT(*) - COUNT(salary)     AS salary_nulls,
+    COUNT(*) - COUNT(department) AS department_nulls
+FROM employees;
+
+NULL count column-wise
+
+SELECT
+    id,
+    name,
+    salary,
+    department,
+    (CASE WHEN id IS NULL THEN 1 ELSE 0 END
+     + CASE WHEN name IS NULL THEN 1 ELSE 0 END
+     + CASE WHEN salary IS NULL THEN 1 ELSE 0 END
+     + CASE WHEN department IS NULL THEN 1 ELSE 0 END) AS null_count
+FROM employees;
 
 -- Working with months
 
@@ -375,6 +402,19 @@ SELECT date_format(order_date, 'MM-yyyy') AS month_year,
 FROM sales
 GROUP BY date_format(order_date, 'MM-yyyy');
 
+-- add days
+SELECT date_add('2025-01-10',5);
+-- substract days
+SELECT date_sub('2025-01-10',7);
+-- add months
+SELECT add_months('2025-01-31',1);
+-- difference between dates
+SELECT datediff('2025-01-20','2025-01-10');
+-- months between
+SELECT months_between('2025-06-30','2025-01-31');
+-- convvert string to date
+to_date(order_date,'yyyy-MM-dd') 
+
 -- Having Clause Scenarios
 
 Employees working on BOTH project1 and project2
@@ -387,13 +427,13 @@ HAVING COUNT(DISTINCT project)=2;
 
 Employees working on project1 and project2 but NO other projects
 
-SELECT employee_id
-FROM Employee_Projects
-GROUP BY employee_id
-HAVING COUNT(DISTINCT project_id)=2
+SELECT empid
+FROM emp_project
+GROUP BY empid
+HAVING COUNT(DISTINCT project)=2
 AND COUNT(DISTINCT CASE
-WHEN project_id IN ('project1','project2')
-THEN project_id
+WHEN project IN ('project1','project2')
+THEN project
 END)=2;
 
 Employees working ONLY on project1
@@ -409,18 +449,29 @@ Employees working on project1 but NOT project2
 SELECT empid
 FROM emp_project
 GROUP BY empid
-HAVING SUM(CASE WHEN project='project1' THEN 1 ELSE 0 END)>0
-AND SUM(CASE WHEN project='project2' THEN 1 ELSE 0 END)=0;
+HAVING COUNT(CASE WHEN project='project1' THEN project END)>0
+AND COUNT(CASE WHEN project='project2' THEN project END)=0;
+
+Employees working on project1 OR project2 but NO other projects
+
+SELECT empid
+FROM emp_project
+GROUP BY empid
+HAVING COUNT(DISTINCT project)
+=
+COUNT(DISTINCT CASE
+        WHEN project IN ('project1','project2')
+        THEN project
+    END);
 
 Employees NOT working on project3
 
 SELECT empid
 FROM emp_project
 GROUP BY empid
-HAVING SUM(CASE WHEN project='project3'
-                THEN 1
-                ELSE 0
-           END)=0;
+HAVING COUNT(CASE WHEN project='project3'
+THEN project END)=0;
+-- neither 1 and 3 also same
 
 Employees working on AT LEAST one of project1/project2
 
@@ -453,6 +504,15 @@ FROM emp_project
 GROUP BY empid
 HAVING COUNT(DISTINCT project)=3;
 
+customers who baught from A and B but not C
+
+SELECT CustID
+FROM purchases
+GROUP BY CustID
+HAVING COUNT(CASE WHEN ProductCode = 'A' THEN 1 END) > 0
+   AND COUNT(CASE WHEN ProductCode = 'B' THEN 1 END) > 0
+   AND COUNT(CASE WHEN ProductCode = 'C' THEN 1 END) = 0;
+
 Bought every product EXACTLY ONCE (no duplicates at all)
 
 SELECT userid FROM purchase_history
@@ -470,4 +530,136 @@ select student_id from exams where subject in ('Chemistry','Physics')
 group by student_id having count(distinct subject)=2 and max(marks)=min(marks)
 
 
--- testing
+-- Gaps and Islands
+
+with cte as
+(select seat_no , seat_no-row_number() over(order by seat_no) as rn from bms
+where is_empty = 'Y'),
+cte1 as 
+(select rn from cte group by rn having count(*)>2)
+
+select seat_no from cte where rn in (select rn from cte1)
+
+-- another variation of the same
+
+WITH cte AS (
+    SELECT
+        user_id,
+        DATE(activity_date) - ROW_NUMBER() OVER (
+            PARTITION BY user_id
+            ORDER BY activity_date
+        ) AS grp
+    FROM table_name
+)
+
+SELECT
+    user_id,
+    longest_streak
+FROM (
+    SELECT
+        user_id,
+        COUNT(*) AS longest_streak,
+        RANK() OVER (
+            PARTITION BY user_id
+            ORDER BY COUNT(*) DESC
+        ) AS rnk
+    FROM cte
+    GROUP BY
+        user_id,
+        grp
+) t
+WHERE rnk = 1;
+
+-- continously increasing
+
+WITH cte AS (
+    SELECT *,
+           LAG(cases, 1, null) OVER (
+               PARTITION BY city
+               ORDER BY days
+           ) AS prev
+    FROM covid
+),
+cte2 AS (
+    SELECT *,
+           CASE
+               WHEN prev IS NULL OR prev < cases THEN 1  -- see is null
+               ELSE 0
+           END AS ci
+    FROM cte
+)
+SELECT city
+FROM cte2
+GROUP BY city
+HAVING MIN(ci) = 1;
+-- having count(*)=sum(ci)
+
+
+-- group key creation
+
+with xxx as (
+  select
+    *,
+    sum(case when status = 'on' and prev_status = 'off' then 1 else 0 end) over (order by event_time) as group_key
+  from (
+    select
+      *,
+      lag(status, 1, status) over (order by event_time asc) as prev_status
+    from
+      event_status) A
+)
+select
+  min(event_time) as login,
+  max(event_time) as logout,
+  count(*) - 1 as on_count
+from
+  xxx
+group by group_key;
+
+
+-- compound where [if dept has more than 2 emps return 3rd highest salary, else highest salary]
+
+WITH cte1 AS (
+    SELECT 
+        emp_id, 
+        emp_name, 
+        salary, 
+        COUNT(*) OVER(PARTITION BY dep_id) AS cn, 
+        ROW_NUMBER() OVER(PARTITION BY dep_id ORDER BY salary DESC) AS rn 
+    FROM emp
+)
+SELECT emp_id, emp_name, salary 
+FROM cte1 
+WHERE (cn > 2 AND rn = 3) 
+   OR (cn <= 2 AND rn = 1);
+
+
+-- employee median salary
+
+select
+  company,
+  avg(salary)
+from
+  (
+    select
+      *,
+      row_number() over (partition by company order by salary) as rn,
+      count(1) over (partition by company) as total_cnt
+    from
+      employee
+  ) a
+where
+  rn between total_cnt * 1.0 / 2 and total_cnt * 1.0 / 2 + 1
+group by
+  company;
+
+
+-- Price on a particular date
+with cte as 
+(select distinct p.product_id, n.price from Products p left join 
+(select product_id, new_price as price from 
+(select *, row_number() over(partition by product_id order by change_date desc) as rn 
+from Products where change_date <= '2019-08-16')m where rn=1)n on p.product_id=n.product_id)
+select product_id, case when price is null then 10 else price end as price from cte
+
+[first row_number and where clause, then select rn=1, then left join, then case]

@@ -50,6 +50,10 @@ def unique(lst):
     l3=[item for item in l1 if item not in l2]
     print('Non Repeating elements are:- ',l3)
     
+def word_formatting(s):
+    print(s[::-1])
+    print(' '.join(s.split()[::-1]))
+    print(' '.join([word[::-1] for word in s.split()[::-1]]))
 
 def main():
         
@@ -74,6 +78,10 @@ def main():
     
     arr=[1,2,2,3,3,4,5,5,6,6,7]
     unique(arr)
+
+    s='hello world prayas'
+    word_formatting(s)
+
 if __name__ == "__main__":
     main()
 
