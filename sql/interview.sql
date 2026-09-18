@@ -127,7 +127,7 @@ SELECT
     MAX(CASE WHEN city = 'Delhi' THEN name END) AS Delhi,
     MAX(CASE WHEN city = 'Mumbai' THEN name END) AS Mumbai
 FROM cte
-GROUP BY rn;
+GROUP BY rn;  -- imp
 
 Compensation pivot → group by a real key (emp_id).
 Players query → no real key exists, so create one using ROW_NUMBER().
