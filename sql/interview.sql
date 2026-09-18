@@ -207,6 +207,13 @@ SELECT
 FROM ranked
 GROUP BY customer_id;
 
+-- if you need to print txn_date as well in addition to txn_amount then add 2 more case
+
+    MAX(CASE WHEN rna = 1 THEN txn_date END) AS first_txn_date,
+    MAX(CASE WHEN rnd = 1 THEN txn_date END) AS latest_txn_date
+
+-- there should be only 1 group by i.e customer_id
+
 
 -- YOY Growth and 3 day Rolling Average
 
